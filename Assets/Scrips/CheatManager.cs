@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -31,9 +32,17 @@ public class CheatManager : MonoBehaviour
     private bool isGodModeActive = false;
     private bool isInfiniteShieldActive = false;
 
+    // Advanced Cheats
+    private bool isSlowMotionActive = false;
+    private bool isGravityDisabled = false;
+    private float originalGravityScale = 0f;
+
     // Score & Progression Settings
     [Header("Score Cheat Settings")]
     [SerializeField] private float pointsToAdd = 1000f;
+
+    [Header("Advanced Cheat Settings")]
+    [SerializeField] private float slowMotionScale = 0.5f;
     #endregion
 
     #region Cheat Multipliers
@@ -138,6 +147,25 @@ public class CheatManager : MonoBehaviour
         if (IsCheatKeyPressed(KeyCode.L))
         {
             UnlockNextLevel();
+        }
+
+        // === ADVANCED CHEATS ===
+        // CTRL+SHIFT+T: Slow Motion
+        if (IsCheatKeyPressed(KeyCode.T))
+        {
+            ToggleSlowMotion();
+        }
+
+        // CTRL+SHIFT+M: Toggle Gravity
+        if (IsCheatKeyPressed(KeyCode.M))
+        {
+            ToggleGravity();
+        }
+
+        // CTRL+SHIFT+0: Reset All Cheats
+        if (IsCheatKeyPressed(KeyCode.Alpha0) || IsCheatKeyPressed(KeyCode.Keypad0))
+        {
+            ResetAllCheats();
         }
     }
     #endregion
@@ -480,6 +508,168 @@ public class CheatManager : MonoBehaviour
         {
             LogCheat("ERROR: GameManager not found!");
         }
+    }
+    #endregion
+
+    #region Advanced Cheats
+    /// <summary>
+    /// Toggle Slow Motion effect
+    /// Key: CTRL+SHIFT+T
+    /// </summary>
+    public void ToggleSlowMotion()
+    {
+        isSlowMotionActive = !isSlowMotionActive;
+
+        if (isSlowMotionActive)
+        {
+            Time.timeScale = slowMotionScale;
+            Time.fixedDeltaTime = 0.02f * Time.timeScale; // Adjust physics timestep
+            LogCheat($"Slow Motion ACTIVATED ({slowMotionScale}x speed)");
+        }
+        else
+        {
+            Time.timeScale = 1f;
+            Time.fixedDeltaTime = 0.02f; // Reset to default
+            LogCheat("Slow Motion DEACTIVATED");
+        }
+
+        NotifyCheatActivated($"Slow Motion {(isSlowMotionActive ? "ON" : "OFF")}");
+    }
+
+    /// <summary>
+    /// Check if slow motion is currently active
+    /// </summary>
+    public bool IsSlowMotionActive()
+    {
+        return isSlowMotionActive;
+    }
+
+    /// <summary>
+    /// Toggle Gravity on/off
+    /// Key: CTRL+SHIFT+M
+    /// </summary>
+    public void ToggleGravity()
+    {
+        isGravityDisabled = !isGravityDisabled;
+
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                if (isGravityDisabled)
+                {
+                    originalGravityScale = rb.gravityScale;
+                    rb.gravityScale = 0f;
+                    rb.linearDamping = 2f; // Add drag for better control
+                    LogCheat("Gravity DISABLED - Player can float freely");
+                }
+                else
+                {
+                    rb.gravityScale = originalGravityScale;
+                    rb.linearDamping = 0.001f; // Restore original damping
+                    LogCheat("Gravity ENABLED - Normal physics restored");
+                }
+
+                NotifyCheatActivated($"Gravity {(isGravityDisabled ? "OFF" : "ON")}");
+            }
+            else
+            {
+                LogCheat("ERROR: Player Rigidbody2D not found!");
+            }
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Check if gravity is currently disabled
+    /// </summary>
+    public bool IsGravityDisabled()
+    {
+        return isGravityDisabled;
+    }
+
+    /// <summary>
+    /// Reset all active cheats to default state
+    /// Key: CTRL+SHIFT+0
+    /// </summary>
+    public void ResetAllCheats()
+    {
+        LogCheat("=== RESETTING ALL CHEATS ===");
+
+        // Disable all movement cheats
+        if (isSuperSpeedActive)
+            ToggleSuperSpeed();
+
+        if (isMegaJumpActive)
+            ToggleMegaJump();
+
+        if (isNoClipActive)
+            ToggleNoClip();
+
+        // Disable all state cheats
+        if (isGodModeActive)
+            ToggleGodMode();
+
+        if (isInfiniteShieldActive)
+            ToggleInfiniteShield();
+
+        // Disable advanced cheats
+        if (isSlowMotionActive)
+            ToggleSlowMotion();
+
+        if (isGravityDisabled)
+            ToggleGravity();
+
+        // Reset Time.timeScale to ensure it's back to normal
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
+
+        LogCheat("=== ALL CHEATS RESET - Game state restored to normal ===");
+        NotifyCheatActivated("All Cheats Reset");
+    }
+    #endregion
+
+    #region Utility Methods
+    /// <summary>
+    /// Get a summary of all active cheats
+    /// </summary>
+    public string GetActiveCheatsSummary()
+    {
+        List<string> activeCheatsList = new List<string>();
+
+        if (isSuperSpeedActive) activeCheatsList.Add("Super Speed");
+        if (isMegaJumpActive) activeCheatsList.Add("Mega Jump");
+        if (isNoClipActive) activeCheatsList.Add("No-Clip");
+        if (isGodModeActive) activeCheatsList.Add("God Mode");
+        if (isInfiniteShieldActive) activeCheatsList.Add("Infinite Shield");
+        if (isSlowMotionActive) activeCheatsList.Add("Slow Motion");
+        if (isGravityDisabled) activeCheatsList.Add("No Gravity");
+
+        if (activeCheatsList.Count == 0)
+            return "No active cheats";
+
+        return string.Join(", ", activeCheatsList);
+    }
+
+    /// <summary>
+    /// Count how many cheats are currently active
+    /// </summary>
+    public int GetActiveCheatCount()
+    {
+        int count = 0;
+        if (isSuperSpeedActive) count++;
+        if (isMegaJumpActive) count++;
+        if (isNoClipActive) count++;
+        if (isGodModeActive) count++;
+        if (isInfiniteShieldActive) count++;
+        if (isSlowMotionActive) count++;
+        if (isGravityDisabled) count++;
+        return count;
     }
     #endregion
 }

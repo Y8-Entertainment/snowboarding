@@ -196,6 +196,12 @@ public class CheatUI : MonoBehaviour
         if (CheatManager.Instance.IsInfiniteShieldActive())
             activeCheatNames.Add("✓ Infinite Shield");
 
+        if (CheatManager.Instance.IsSlowMotionActive())
+            activeCheatNames.Add("✓ Slow Motion");
+
+        if (CheatManager.Instance.IsGravityDisabled())
+            activeCheatNames.Add("✓ No Gravity");
+
         // Update UI
         if (activeCheatsPanel != null)
         {
