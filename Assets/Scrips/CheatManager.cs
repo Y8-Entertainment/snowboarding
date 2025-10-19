@@ -1,0 +1,676 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// CheatManager - Central hub for all cheat functionality
+/// Provides developer tools for testing and debugging gameplay
+/// 
+/// Master Toggle: CTRL+C (Enable/Disable cheat system)
+/// All cheats require cheat mode to be enabled first
+/// </summary>
+public class CheatManager : MonoBehaviour
+{
+    #region Singleton
+    public static CheatManager Instance { get; private set; }
+    #endregion
+
+    #region Configuration
+    [Header("Debug Settings")]
+    [SerializeField] private bool debugMode = true;
+    #endregion
+
+    #region Cheat State
+    private bool cheatModeEnabled = false;
+
+    // Movement Cheats
+    private bool isSuperSpeedActive = false;
+    private bool isMegaJumpActive = false;
+    private bool isNoClipActive = false;
+
+    // Player State Cheats
+    private bool isGodModeActive = false;
+    private bool isInfiniteShieldActive = false;
+
+    // Advanced Cheats
+    private bool isSlowMotionActive = false;
+    private bool isGravityDisabled = false;
+    private float originalGravityScale = 0f;
+
+    // Score & Progression Settings
+    [Header("Score Cheat Settings")]
+    [SerializeField] private float pointsToAdd = 1000f;
+
+    [Header("Advanced Cheat Settings")]
+    [SerializeField] private float slowMotionScale = 0.5f;
+    #endregion
+
+    #region Cheat Multipliers
+    [Header("Movement Cheat Settings")]
+    [SerializeField] private float speedMultiplier = 2f;
+    [SerializeField] private float jumpMultiplier = 3f;
+    #endregion
+
+    #region Events
+    /// <summary>
+    /// Event fired when any cheat is activated or deactivated
+    /// </summary>
+    public event Action<string> OnCheatActivated;
+    #endregion
+
+    #region Unity Lifecycle
+    private void Awake()
+    {
+        // Singleton pattern with persistence across scenes
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            LogCheat("CheatManager initialized and will persist across scenes");
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void Update()
+    {
+        // Master cheat toggle - CTRL+C
+        if (IsControlPressed() && Input.GetKeyDown(KeyCode.C))
+        {
+            ToggleCheatMode();
+        }
+
+        // Only process other cheats if cheat mode is enabled
+        if (!cheatModeEnabled)
+            return;
+
+        // === MOVEMENT CHEATS ===
+        // CTRL+SHIFT+S: Super Speed
+        if (IsCheatKeyPressed(KeyCode.S))
+        {
+            ToggleSuperSpeed();
+        }
+
+        // CTRL+SHIFT+J: Mega Jump
+        if (IsCheatKeyPressed(KeyCode.J))
+        {
+            ToggleMegaJump();
+        }
+
+        // CTRL+SHIFT+N: No-Clip Mode
+        if (IsCheatKeyPressed(KeyCode.N))
+        {
+            ToggleNoClip();
+        }
+
+        // === PLAYER STATE CHEATS ===
+        // CTRL+SHIFT+G: God Mode
+        if (IsCheatKeyPressed(KeyCode.G))
+        {
+            ToggleGodMode();
+        }
+
+        // CTRL+SHIFT+H: Infinite Shield
+        if (IsCheatKeyPressed(KeyCode.H))
+        {
+            ToggleInfiniteShield();
+        }
+
+        // CTRL+SHIFT+I: Instant Shield
+        if (IsCheatKeyPressed(KeyCode.I))
+        {
+            ActivateInstantShield();
+        }
+
+        // === SCORE & PROGRESSION CHEATS ===
+        // CTRL+SHIFT+P: Add Points
+        if (IsCheatKeyPressed(KeyCode.P))
+        {
+            AddBonusPoints();
+        }
+
+        // CTRL+SHIFT+R: Reset Score
+        if (IsCheatKeyPressed(KeyCode.R))
+        {
+            ResetScore();
+        }
+
+        // CTRL+SHIFT+F: Teleport to Finish
+        if (IsCheatKeyPressed(KeyCode.F))
+        {
+            TeleportToFinish();
+        }
+
+        // CTRL+SHIFT+L: Unlock Next Level
+        if (IsCheatKeyPressed(KeyCode.L))
+        {
+            UnlockNextLevel();
+        }
+
+        // === ADVANCED CHEATS ===
+        // CTRL+SHIFT+T: Slow Motion
+        if (IsCheatKeyPressed(KeyCode.T))
+        {
+            ToggleSlowMotion();
+        }
+
+        // CTRL+SHIFT+M: Toggle Gravity
+        if (IsCheatKeyPressed(KeyCode.M))
+        {
+            ToggleGravity();
+        }
+
+        // CTRL+SHIFT+0: Reset All Cheats
+        if (IsCheatKeyPressed(KeyCode.Alpha0) || IsCheatKeyPressed(KeyCode.Keypad0))
+        {
+            ResetAllCheats();
+        }
+    }
+    #endregion
+
+    #region Master Cheat Toggle
+    /// <summary>
+    /// Toggle the master cheat mode on/off
+    /// All individual cheats require this to be enabled
+    /// </summary>
+    public void ToggleCheatMode()
+    {
+        cheatModeEnabled = !cheatModeEnabled;
+        
+        string status = cheatModeEnabled ? "ON" : "OFF";
+        LogCheat($"=== CHEAT MODE: {status} ===");
+        
+        // Notify listeners
+        NotifyCheatActivated($"Cheat Mode {status}");
+        
+        // Visual/audio feedback can be added here in future commits
+    }
+
+    /// <summary>
+    /// Check if cheat mode is currently enabled
+    /// </summary>
+    public bool IsCheatModeEnabled()
+    {
+        return cheatModeEnabled;
+    }
+    #endregion
+
+    #region Key Detection Utilities
+    /// <summary>
+    /// Check if Control key is pressed (left or right)
+    /// </summary>
+    private bool IsControlPressed()
+    {
+        return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+    }
+
+    /// <summary>
+    /// Check if Shift key is pressed (left or right)
+    /// </summary>
+    private bool IsShiftPressed()
+    {
+        return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+    }
+
+    /// <summary>
+    /// Check if a cheat key combination is pressed (CTRL+SHIFT+key)
+    /// </summary>
+    /// <param name="key">The specific key to check</param>
+    /// <returns>True if the full combination is pressed</returns>
+    private bool IsCheatKeyPressed(KeyCode key)
+    {
+        // Only process if cheat mode is enabled
+        if (!cheatModeEnabled)
+            return false;
+
+        return IsControlPressed() && IsShiftPressed() && Input.GetKeyDown(key);
+    }
+    #endregion
+
+    #region Event System
+    /// <summary>
+    /// Notify all listeners that a cheat has been activated
+    /// </summary>
+    /// <param name="cheatName">Name of the cheat that was activated</param>
+    private void NotifyCheatActivated(string cheatName)
+    {
+        OnCheatActivated?.Invoke(cheatName);
+    }
+    #endregion
+
+    #region Debug System
+    /// <summary>
+    /// Log cheat-related messages to console (only if debug mode is enabled)
+    /// </summary>
+    /// <param name="message">Message to log</param>
+    private void LogCheat(string message)
+    {
+        if (debugMode)
+        {
+            Debug.Log($"[CHEAT] {message}");
+        }
+    }
+    #endregion
+
+    #region Movement Cheats
+    /// <summary>
+    /// Toggle Super Speed cheat (2x movement speed)
+    /// Key: CTRL+SHIFT+S
+    /// </summary>
+    public void ToggleSuperSpeed()
+    {
+        isSuperSpeedActive = !isSuperSpeedActive;
+        
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            if (isSuperSpeedActive)
+            {
+                player.SetSpeedMultiplier(speedMultiplier);
+                LogCheat($"Super Speed ACTIVATED (x{speedMultiplier})");
+            }
+            else
+            {
+                player.SetSpeedMultiplier(1f);
+                LogCheat("Super Speed DEACTIVATED");
+            }
+            
+            NotifyCheatActivated($"Super Speed {(isSuperSpeedActive ? "ON" : "OFF")}");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Toggle Mega Jump cheat (3x jump force)
+    /// Key: CTRL+SHIFT+J
+    /// </summary>
+    public void ToggleMegaJump()
+    {
+        isMegaJumpActive = !isMegaJumpActive;
+        
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            if (isMegaJumpActive)
+            {
+                player.SetJumpMultiplier(jumpMultiplier);
+                LogCheat($"Mega Jump ACTIVATED (x{jumpMultiplier})");
+            }
+            else
+            {
+                player.SetJumpMultiplier(1f);
+                LogCheat("Mega Jump DEACTIVATED");
+            }
+            
+            NotifyCheatActivated($"Mega Jump {(isMegaJumpActive ? "ON" : "OFF")}");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Toggle No-Clip mode (fly through objects)
+    /// Key: CTRL+SHIFT+N
+    /// </summary>
+    public void ToggleNoClip()
+    {
+        isNoClipActive = !isNoClipActive;
+        
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            player.SetNoClipMode(isNoClipActive);
+            LogCheat($"No-Clip Mode {(isNoClipActive ? "ACTIVATED" : "DEACTIVATED")}");
+            NotifyCheatActivated($"No-Clip {(isNoClipActive ? "ON" : "OFF")}");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Check if super speed is currently active
+    /// </summary>
+    public bool IsSuperSpeedActive()
+    {
+        return isSuperSpeedActive;
+    }
+
+    /// <summary>
+    /// Check if mega jump is currently active
+    /// </summary>
+    public bool IsMegaJumpActive()
+    {
+        return isMegaJumpActive;
+    }
+
+    /// <summary>
+    /// Check if no-clip mode is currently active
+    /// </summary>
+    public bool IsNoClipActive()
+    {
+        return isNoClipActive;
+    }
+    #endregion
+
+    #region Player State Cheats
+    /// <summary>
+    /// Toggle God Mode (complete invincibility)
+    /// Key: CTRL+SHIFT+G
+    /// </summary>
+    public void ToggleGodMode()
+    {
+        isGodModeActive = !isGodModeActive;
+        LogCheat($"God Mode {(isGodModeActive ? "ACTIVATED" : "DEACTIVATED")} - Player is now {(isGodModeActive ? "invincible" : "vulnerable")}");
+        NotifyCheatActivated($"God Mode {(isGodModeActive ? "ON" : "OFF")}");
+    }
+
+    /// <summary>
+    /// Check if god mode is currently active
+    /// </summary>
+    public bool IsGodModeActive()
+    {
+        return isGodModeActive;
+    }
+
+    /// <summary>
+    /// Toggle Infinite Shield (shield never expires)
+    /// Key: CTRL+SHIFT+H
+    /// </summary>
+    public void ToggleInfiniteShield()
+    {
+        isInfiniteShieldActive = !isInfiniteShieldActive;
+        LogCheat($"Infinite Shield {(isInfiniteShieldActive ? "ACTIVATED" : "DEACTIVATED")}");
+        NotifyCheatActivated($"Infinite Shield {(isInfiniteShieldActive ? "ON" : "OFF")}");
+    }
+
+    /// <summary>
+    /// Check if infinite shield is currently active
+    /// </summary>
+    public bool IsInfiniteShieldActive()
+    {
+        return isInfiniteShieldActive;
+    }
+
+    /// <summary>
+    /// Activate shield instantly with default duration
+    /// Key: CTRL+SHIFT+I
+    /// </summary>
+    public void ActivateInstantShield()
+    {
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            float shieldDuration = isInfiniteShieldActive ? 999999f : 10f;
+            player.ActivateShield(shieldDuration);
+            LogCheat($"Instant Shield ACTIVATED (Duration: {(isInfiniteShieldActive ? "Infinite" : "10s")})");
+            NotifyCheatActivated("Instant Shield Spawned");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+    #endregion
+
+    #region Score & Progression Cheats
+    /// <summary>
+    /// Add bonus points to score
+    /// Key: CTRL+SHIFT+P
+    /// </summary>
+    public void AddBonusPoints()
+    {
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.AddScore(pointsToAdd);
+            LogCheat($"Added {pointsToAdd} bonus points! New Score: {ScoreManager.Instance.GetScore()}");
+            NotifyCheatActivated($"+{pointsToAdd} Points");
+        }
+        else
+        {
+            LogCheat("ERROR: ScoreManager not found!");
+        }
+    }
+
+    /// <summary>
+    /// Reset score to zero
+    /// Key: CTRL+SHIFT+R
+    /// </summary>
+    public void ResetScore()
+    {
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.ResetScore();
+            LogCheat("Score RESET to 0");
+            NotifyCheatActivated("Score Reset");
+        }
+        else
+        {
+            LogCheat("ERROR: ScoreManager not found!");
+        }
+    }
+
+    /// <summary>
+    /// Teleport player to finish line
+    /// Key: CTRL+SHIFT+F
+    /// </summary>
+    public void TeleportToFinish()
+    {
+        GameObject finishLine = GameObject.FindGameObjectWithTag("Finish");
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+
+        if (finishLine != null && player != null)
+        {
+            Vector3 finishPosition = finishLine.transform.position;
+            // Teleport slightly before the finish line to trigger it properly
+            player.transform.position = new Vector3(finishPosition.x - 2f, finishPosition.y + 2f, player.transform.position.z);
+            
+            // Reset velocity for clean landing
+            Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.linearVelocity = new Vector2(5f, 0f); // Give small forward velocity
+            }
+
+            LogCheat("Player TELEPORTED to finish line!");
+            NotifyCheatActivated("Teleported to Finish");
+        }
+        else
+        {
+            if (finishLine == null)
+                LogCheat("ERROR: Finish line not found! Make sure finish line has 'Finish' tag.");
+            if (player == null)
+                LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Complete current level and unlock next
+    /// Key: CTRL+SHIFT+L
+    /// </summary>
+    public void UnlockNextLevel()
+    {
+        if (GameManager.Instance != null)
+        {
+            LogCheat("Level COMPLETED (cheat) - Showing win panel");
+            GameManager.Instance.ShowWinPanelWithDelay(0.1f);
+            NotifyCheatActivated("Level Unlocked");
+        }
+        else
+        {
+            LogCheat("ERROR: GameManager not found!");
+        }
+    }
+    #endregion
+
+    #region Advanced Cheats
+    /// <summary>
+    /// Toggle Slow Motion effect
+    /// Key: CTRL+SHIFT+T
+    /// </summary>
+    public void ToggleSlowMotion()
+    {
+        isSlowMotionActive = !isSlowMotionActive;
+
+        if (isSlowMotionActive)
+        {
+            Time.timeScale = slowMotionScale;
+            Time.fixedDeltaTime = 0.02f * Time.timeScale; // Adjust physics timestep
+            LogCheat($"Slow Motion ACTIVATED ({slowMotionScale}x speed)");
+        }
+        else
+        {
+            Time.timeScale = 1f;
+            Time.fixedDeltaTime = 0.02f; // Reset to default
+            LogCheat("Slow Motion DEACTIVATED");
+        }
+
+        NotifyCheatActivated($"Slow Motion {(isSlowMotionActive ? "ON" : "OFF")}");
+    }
+
+    /// <summary>
+    /// Check if slow motion is currently active
+    /// </summary>
+    public bool IsSlowMotionActive()
+    {
+        return isSlowMotionActive;
+    }
+
+    /// <summary>
+    /// Toggle Gravity on/off
+    /// Key: CTRL+SHIFT+M
+    /// </summary>
+    public void ToggleGravity()
+    {
+        isGravityDisabled = !isGravityDisabled;
+
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                if (isGravityDisabled)
+                {
+                    originalGravityScale = rb.gravityScale;
+                    rb.gravityScale = 0f;
+                    rb.linearDamping = 2f; // Add drag for better control
+                    LogCheat("Gravity DISABLED - Player can float freely");
+                }
+                else
+                {
+                    rb.gravityScale = originalGravityScale;
+                    rb.linearDamping = 0.001f; // Restore original damping
+                    LogCheat("Gravity ENABLED - Normal physics restored");
+                }
+
+                NotifyCheatActivated($"Gravity {(isGravityDisabled ? "OFF" : "ON")}");
+            }
+            else
+            {
+                LogCheat("ERROR: Player Rigidbody2D not found!");
+            }
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Check if gravity is currently disabled
+    /// </summary>
+    public bool IsGravityDisabled()
+    {
+        return isGravityDisabled;
+    }
+
+    /// <summary>
+    /// Reset all active cheats to default state
+    /// Key: CTRL+SHIFT+0
+    /// </summary>
+    public void ResetAllCheats()
+    {
+        LogCheat("=== RESETTING ALL CHEATS ===");
+
+        // Disable all movement cheats
+        if (isSuperSpeedActive)
+            ToggleSuperSpeed();
+
+        if (isMegaJumpActive)
+            ToggleMegaJump();
+
+        if (isNoClipActive)
+            ToggleNoClip();
+
+        // Disable all state cheats
+        if (isGodModeActive)
+            ToggleGodMode();
+
+        if (isInfiniteShieldActive)
+            ToggleInfiniteShield();
+
+        // Disable advanced cheats
+        if (isSlowMotionActive)
+            ToggleSlowMotion();
+
+        if (isGravityDisabled)
+            ToggleGravity();
+
+        // Reset Time.timeScale to ensure it's back to normal
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
+
+        LogCheat("=== ALL CHEATS RESET - Game state restored to normal ===");
+        NotifyCheatActivated("All Cheats Reset");
+    }
+    #endregion
+
+    #region Utility Methods
+    /// <summary>
+    /// Get a summary of all active cheats
+    /// </summary>
+    public string GetActiveCheatsSummary()
+    {
+        List<string> activeCheatsList = new List<string>();
+
+        if (isSuperSpeedActive) activeCheatsList.Add("Super Speed");
+        if (isMegaJumpActive) activeCheatsList.Add("Mega Jump");
+        if (isNoClipActive) activeCheatsList.Add("No-Clip");
+        if (isGodModeActive) activeCheatsList.Add("God Mode");
+        if (isInfiniteShieldActive) activeCheatsList.Add("Infinite Shield");
+        if (isSlowMotionActive) activeCheatsList.Add("Slow Motion");
+        if (isGravityDisabled) activeCheatsList.Add("No Gravity");
+
+        if (activeCheatsList.Count == 0)
+            return "No active cheats";
+
+        return string.Join(", ", activeCheatsList);
+    }
+
+    /// <summary>
+    /// Count how many cheats are currently active
+    /// </summary>
+    public int GetActiveCheatCount()
+    {
+        int count = 0;
+        if (isSuperSpeedActive) count++;
+        if (isMegaJumpActive) count++;
+        if (isNoClipActive) count++;
+        if (isGodModeActive) count++;
+        if (isInfiniteShieldActive) count++;
+        if (isSlowMotionActive) count++;
+        if (isGravityDisabled) count++;
+        return count;
+    }
+    #endregion
+}
+

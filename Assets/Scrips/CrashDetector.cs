@@ -9,7 +9,6 @@ public class CrashDetector : MonoBehaviour
     {
         if (collision.CompareTag("Ground"))
         {
-            // Kiểm tra nếu player có khiên vĩnh cửu thì không game over
             PlayerController controller = collision.GetComponent<PlayerController>();
             if (controller != null && controller.IsPermanentShield())
             {

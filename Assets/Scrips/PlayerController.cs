@@ -46,6 +46,13 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;           // Kiểm tra có đang chạm đất không
     private Rigidbody2D rb;           // Component điều khiển vật lý
     private Animator animator;         // Component điều khiển animation
+    
+    // --- CHEAT SYSTEM VARIABLES ---
+    private float originalMaxSpeed;
+    private float originalJumpForce;
+    private float currentSpeedMultiplier = 1f;
+    private float currentJumpMultiplier = 1f;
+    private bool isNoClipMode = false;
     //
     [SerializeField] private GameObject helmetShieldPrefab;
     private GameObject helmetShieldInstance;
@@ -103,6 +110,10 @@ public class PlayerController : MonoBehaviour
         originalAngularDamping = rb.angularDamping;
 
         // Cho phép xoay
+        
+        // Store original values for cheat system
+        originalMaxSpeed = maxSpeed;
+        originalJumpForce = jumpForce;
     }
 
     void Update()
@@ -138,11 +149,12 @@ public class PlayerController : MonoBehaviour
         if (Time.timeScale == 0f)
             return;
 
-        // Luôn kiểm tra và giới hạn tốc độ trước
+        // Luôn kiểm tra và giới hạn tốc độ trước (apply speed multiplier from cheats)
+        float effectiveMaxSpeed = maxSpeed * currentSpeedMultiplier;
         if (!isSpeedBoosting && !isDeceleratingAfterBoost)
         {
-            if (rb.linearVelocity.magnitude > maxSpeed)
-                rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
+            if (rb.linearVelocity.magnitude > effectiveMaxSpeed)
+                rb.linearVelocity = rb.linearVelocity.normalized * effectiveMaxSpeed;
         }
 
         if (isGrounded)
@@ -273,7 +285,9 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
-            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+            // Apply jump multiplier from cheat system
+            float effectiveJumpForce = jumpForce * currentJumpMultiplier;
+            rb.AddForce(Vector2.up * effectiveJumpForce, ForceMode2D.Impulse);
         }
     }
 
@@ -797,22 +811,36 @@ public class PlayerController : MonoBehaviour
         if (idleTime > 0)
             yield return new WaitForSeconds(idleTime);
 
-        if (helmetShieldInstance != null && shieldAnim != null)
+        // Check if infinite shield is active (cheat system)
+        bool infiniteShield = CheatManager.Instance != null && CheatManager.Instance.IsInfiniteShieldActive();
+        
+        // If infinite shield is active, don't fade out and destroy
+        if (!infiniteShield)
         {
-            shieldAnim.SetTrigger("FadeOut");
-            yield return new WaitForSeconds(2f);
+            if (helmetShieldInstance != null && shieldAnim != null)
+            {
+                shieldAnim.SetTrigger("FadeOut");
+                yield return new WaitForSeconds(2f);
+            }
+
+            if (helmetShieldInstance != null)
+                Destroy(helmetShieldInstance);
+
+            helmetShieldInstance = null;
+            shieldAnim = null;
+            isShieldActive = false;
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.getShieldDisappear);
+            SetItemCollidersActive(true);
+
+            StartCoroutine(DelayedReactivation());
         }
-
-        if (helmetShieldInstance != null)
-            Destroy(helmetShieldInstance);
-
-        helmetShieldInstance = null;
-        shieldAnim = null;
-        isShieldActive = false;
-        AudioManager.Instance.PlaySFX(AudioManager.Instance.getShieldDisappear);
-        SetItemCollidersActive(true);
-
-        StartCoroutine(DelayedReactivation());
+        else
+        {
+            // Infinite shield: restart the routine to keep it active forever
+            Debug.Log("[CHEAT] Shield is infinite - restarting routine");
+            yield return new WaitForSeconds(1f);
+            StartCoroutine(ShieldRoutine(999999f)); // Restart with very long duration
+        }
     }
 
     private bool isShieldCooldown = false;
@@ -968,4 +996,56 @@ public class PlayerController : MonoBehaviour
                 col.enabled = isActive;
         }
     }
+
+    #region Cheat System Integration
+    /// <summary>
+    /// Set speed multiplier for cheat system
+    /// </summary>
+    public void SetSpeedMultiplier(float multiplier)
+    {
+        currentSpeedMultiplier = multiplier;
+        maxSpeed = originalMaxSpeed * multiplier;
+    }
+
+    /// <summary>
+    /// Set jump multiplier for cheat system
+    /// </summary>
+    public void SetJumpMultiplier(float multiplier)
+    {
+        currentJumpMultiplier = multiplier;
+        jumpForce = originalJumpForce * multiplier;
+    }
+
+    /// <summary>
+    /// Enable/disable no-clip mode for cheat system
+    /// </summary>
+    public void SetNoClipMode(bool enabled)
+    {
+        isNoClipMode = enabled;
+        
+        if (enabled)
+        {
+            // Disable gravity and collision detection
+            rb.gravityScale = 0f;
+            rb.linearDamping = 2f; // Add some drag for control
+            
+            // Allow manual movement
+            gameObject.layer = LayerMask.NameToLayer("Default");
+        }
+        else
+        {
+            // Restore normal physics
+            rb.gravityScale = 2f * gravityMultiplier;
+            rb.linearDamping = 0.001f;
+        }
+    }
+
+    /// <summary>
+    /// Check if no-clip mode is active
+    /// </summary>
+    public bool IsNoClipMode()
+    {
+        return isNoClipMode;
+    }
+    #endregion
 }
