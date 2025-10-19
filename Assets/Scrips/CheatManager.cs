@@ -30,6 +30,10 @@ public class CheatManager : MonoBehaviour
     // Player State Cheats
     private bool isGodModeActive = false;
     private bool isInfiniteShieldActive = false;
+
+    // Score & Progression Settings
+    [Header("Score Cheat Settings")]
+    [SerializeField] private float pointsToAdd = 1000f;
     #endregion
 
     #region Cheat Multipliers
@@ -109,6 +113,31 @@ public class CheatManager : MonoBehaviour
         if (IsCheatKeyPressed(KeyCode.I))
         {
             ActivateInstantShield();
+        }
+
+        // === SCORE & PROGRESSION CHEATS ===
+        // CTRL+SHIFT+P: Add Points
+        if (IsCheatKeyPressed(KeyCode.P))
+        {
+            AddBonusPoints();
+        }
+
+        // CTRL+SHIFT+R: Reset Score
+        if (IsCheatKeyPressed(KeyCode.R))
+        {
+            ResetScore();
+        }
+
+        // CTRL+SHIFT+F: Teleport to Finish
+        if (IsCheatKeyPressed(KeyCode.F))
+        {
+            TeleportToFinish();
+        }
+
+        // CTRL+SHIFT+L: Unlock Next Level
+        if (IsCheatKeyPressed(KeyCode.L))
+        {
+            UnlockNextLevel();
         }
     }
     #endregion
@@ -360,6 +389,96 @@ public class CheatManager : MonoBehaviour
         else
         {
             LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+    #endregion
+
+    #region Score & Progression Cheats
+    /// <summary>
+    /// Add bonus points to score
+    /// Key: CTRL+SHIFT+P
+    /// </summary>
+    public void AddBonusPoints()
+    {
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.AddScore(pointsToAdd);
+            LogCheat($"Added {pointsToAdd} bonus points! New Score: {ScoreManager.Instance.GetScore()}");
+            NotifyCheatActivated($"+{pointsToAdd} Points");
+        }
+        else
+        {
+            LogCheat("ERROR: ScoreManager not found!");
+        }
+    }
+
+    /// <summary>
+    /// Reset score to zero
+    /// Key: CTRL+SHIFT+R
+    /// </summary>
+    public void ResetScore()
+    {
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.ResetScore();
+            LogCheat("Score RESET to 0");
+            NotifyCheatActivated("Score Reset");
+        }
+        else
+        {
+            LogCheat("ERROR: ScoreManager not found!");
+        }
+    }
+
+    /// <summary>
+    /// Teleport player to finish line
+    /// Key: CTRL+SHIFT+F
+    /// </summary>
+    public void TeleportToFinish()
+    {
+        GameObject finishLine = GameObject.FindGameObjectWithTag("Finish");
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+
+        if (finishLine != null && player != null)
+        {
+            Vector3 finishPosition = finishLine.transform.position;
+            // Teleport slightly before the finish line to trigger it properly
+            player.transform.position = new Vector3(finishPosition.x - 2f, finishPosition.y + 2f, player.transform.position.z);
+            
+            // Reset velocity for clean landing
+            Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.linearVelocity = new Vector2(5f, 0f); // Give small forward velocity
+            }
+
+            LogCheat("Player TELEPORTED to finish line!");
+            NotifyCheatActivated("Teleported to Finish");
+        }
+        else
+        {
+            if (finishLine == null)
+                LogCheat("ERROR: Finish line not found! Make sure finish line has 'Finish' tag.");
+            if (player == null)
+                LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Complete current level and unlock next
+    /// Key: CTRL+SHIFT+L
+    /// </summary>
+    public void UnlockNextLevel()
+    {
+        if (GameManager.Instance != null)
+        {
+            LogCheat("Level COMPLETED (cheat) - Showing win panel");
+            GameManager.Instance.ShowWinPanelWithDelay(0.1f);
+            NotifyCheatActivated("Level Unlocked");
+        }
+        else
+        {
+            LogCheat("ERROR: GameManager not found!");
         }
     }
     #endregion
