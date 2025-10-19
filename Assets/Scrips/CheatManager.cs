@@ -21,6 +21,17 @@ public class CheatManager : MonoBehaviour
 
     #region Cheat State
     private bool cheatModeEnabled = false;
+
+    // Movement Cheats
+    private bool isSuperSpeedActive = false;
+    private bool isMegaJumpActive = false;
+    private bool isNoClipActive = false;
+    #endregion
+
+    #region Cheat Multipliers
+    [Header("Movement Cheat Settings")]
+    [SerializeField] private float speedMultiplier = 2f;
+    [SerializeField] private float jumpMultiplier = 3f;
     #endregion
 
     #region Events
@@ -58,7 +69,24 @@ public class CheatManager : MonoBehaviour
         if (!cheatModeEnabled)
             return;
 
-        // Future cheat key combinations will be added here in subsequent commits
+        // === MOVEMENT CHEATS ===
+        // CTRL+SHIFT+S: Super Speed
+        if (IsCheatKeyPressed(KeyCode.S))
+        {
+            ToggleSuperSpeed();
+        }
+
+        // CTRL+SHIFT+J: Mega Jump
+        if (IsCheatKeyPressed(KeyCode.J))
+        {
+            ToggleMegaJump();
+        }
+
+        // CTRL+SHIFT+N: No-Clip Mode
+        if (IsCheatKeyPressed(KeyCode.N))
+        {
+            ToggleNoClip();
+        }
     }
     #endregion
 
@@ -143,6 +171,113 @@ public class CheatManager : MonoBehaviour
         {
             Debug.Log($"[CHEAT] {message}");
         }
+    }
+    #endregion
+
+    #region Movement Cheats
+    /// <summary>
+    /// Toggle Super Speed cheat (2x movement speed)
+    /// Key: CTRL+SHIFT+S
+    /// </summary>
+    public void ToggleSuperSpeed()
+    {
+        isSuperSpeedActive = !isSuperSpeedActive;
+        
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            if (isSuperSpeedActive)
+            {
+                player.SetSpeedMultiplier(speedMultiplier);
+                LogCheat($"Super Speed ACTIVATED (x{speedMultiplier})");
+            }
+            else
+            {
+                player.SetSpeedMultiplier(1f);
+                LogCheat("Super Speed DEACTIVATED");
+            }
+            
+            NotifyCheatActivated($"Super Speed {(isSuperSpeedActive ? "ON" : "OFF")}");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Toggle Mega Jump cheat (3x jump force)
+    /// Key: CTRL+SHIFT+J
+    /// </summary>
+    public void ToggleMegaJump()
+    {
+        isMegaJumpActive = !isMegaJumpActive;
+        
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            if (isMegaJumpActive)
+            {
+                player.SetJumpMultiplier(jumpMultiplier);
+                LogCheat($"Mega Jump ACTIVATED (x{jumpMultiplier})");
+            }
+            else
+            {
+                player.SetJumpMultiplier(1f);
+                LogCheat("Mega Jump DEACTIVATED");
+            }
+            
+            NotifyCheatActivated($"Mega Jump {(isMegaJumpActive ? "ON" : "OFF")}");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Toggle No-Clip mode (fly through objects)
+    /// Key: CTRL+SHIFT+N
+    /// </summary>
+    public void ToggleNoClip()
+    {
+        isNoClipActive = !isNoClipActive;
+        
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            player.SetNoClipMode(isNoClipActive);
+            LogCheat($"No-Clip Mode {(isNoClipActive ? "ACTIVATED" : "DEACTIVATED")}");
+            NotifyCheatActivated($"No-Clip {(isNoClipActive ? "ON" : "OFF")}");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
+    }
+
+    /// <summary>
+    /// Check if super speed is currently active
+    /// </summary>
+    public bool IsSuperSpeedActive()
+    {
+        return isSuperSpeedActive;
+    }
+
+    /// <summary>
+    /// Check if mega jump is currently active
+    /// </summary>
+    public bool IsMegaJumpActive()
+    {
+        return isMegaJumpActive;
+    }
+
+    /// <summary>
+    /// Check if no-clip mode is currently active
+    /// </summary>
+    public bool IsNoClipActive()
+    {
+        return isNoClipActive;
     }
     #endregion
 }
