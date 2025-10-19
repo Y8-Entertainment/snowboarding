@@ -8,6 +8,14 @@ public class FallZone : MonoBehaviour
     {
         if (collision.CompareTag("Player"))
         {
+            // Kiểm tra nếu player có khiên vĩnh cửu thì không game over
+            PlayerController controller = collision.GetComponent<PlayerController>();
+            if (controller != null && controller.IsPermanentShield())
+            {
+                Debug.Log("🛡️ Khiên vĩnh cửu: Miễn nhiễm rơi xuống vực!");
+                return;
+            }
+
             Debug.Log("Player rơi xuống vực - Game Over!");
             AudioManager.Instance.PlayMusic(AudioManager.Instance.loseMusic);
 

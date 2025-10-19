@@ -4,27 +4,43 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     // --- CÁC THÔNG SỐ CƠ BẢN ---
-    [SerializeField] private float maxSpeed = 50f;         // Tốc độ tối đa không thể vượt quá
-    [SerializeField] private float jumpForce = 30f;        // Lực nhảy - càng lớn nhảy càng cao
-    [SerializeField] private float torqueAmount = 8f;    // Độ nhạy khi xoay - càng lớn xoay càng nhanh
+    [SerializeField] private float maxSpeed = 35f;         // Tốc độ tối đa không thể vượt quá
+    [SerializeField] private float jumpForce = 20f;        // Lực nhảy - càng lớn nhảy càng cao
+    [SerializeField] private float torqueAmount = 5f;    // Độ nhạy khi xoay - càng lớn xoay càng nhanh
     [SerializeField] private LayerMask groundLayer;        // Layer của mặt đất/tuyết
     [SerializeField] private Transform groundCheck;        // Điểm kiểm tra va chạm với đất
 
     // --- THÔNG SỐ VẬT LÝ ---
-    [SerializeField] private float decelerationRate = 2.2f;       // Độ ma sát - càng lớn dừng càng nhanh
+    [SerializeField] private float decelerationRate = 1.0f;       // Độ ma sát - càng lớn dừng càng nhanh
     [SerializeField] private float minSpeedThreshold = 2f;      // Tốc độ tối thiểu để duy trì chuyển động
-    [SerializeField] private float gravityMultiplier = 2.2f;    // Hệ số trọng lực - càng lớn càng nặng
-    [SerializeField] private float moveForce = 10f;           
+    [SerializeField] private float gravityMultiplier = 1.5f;    // Hệ số trọng lực - càng lớn càng nặng
+    [SerializeField] private float moveForce = 6f;           
 
     // --- HỆ THỐNG CÂN BẰNG ---
-    [SerializeField] private float balanceForce = 3f;         // Lực giữ thăng bằng - càng lớn càng khó nghiêng
-    [SerializeField] private float maxBalanceAngle = 45f;       // Góc nghiêng tối đa cho phép
+    [SerializeField] private float balanceForce = 2f;         // Lực giữ thăng bằng - càng lớn càng khó nghiêng
+    [SerializeField] private float maxBalanceAngle = 60f;       // Góc nghiêng tối đa cho phép
     [SerializeField] private float balanceSpeed = 25f;          // Tốc độ cân bằng lại - càng lớn càng nhanh
-    [SerializeField] private float stabilityForce = 3f;         // Lực ổn định - giúp không bị lật
+    [SerializeField] private float stabilityForce = 2f;         // Lực ổn định - giúp không bị lật
 
     // --- ĐIỀU KHIỂN TRÊN KHÔNG ---
     [SerializeField] private float airRotationSpeed = 720f;     // Tốc độ xoay cơ bản khi nhấn W/S trên không
     [SerializeField] private float maxAirRotationSpeed = 500f;  // Tốc độ xoay tối đa trên không
+
+    // --- HỆ THỐNG BÁM THẲNG ĐỨNG ---
+    [SerializeField] private bool enableVerticalStick = true;   // Bật/tắt tính năng bám thẳng đứng
+    [SerializeField] private float verticalStickForce = 15f;    // Lực bám vào bề mặt thẳng đứng
+    [SerializeField] private float verticalStickRange = 1.5f;    // Khoảng cách phát hiện bề mặt thẳng đứng
+    [SerializeField] private float verticalStickSpeed = 8f;    // Tốc độ bám vào bề mặt thẳng đứng
+    [SerializeField] private float verticalStickDamping = 0.8f;  // Damping khi bám vào bề mặt thẳng đứng
+
+    // --- GOD MODE (BẤT TỬ VÀ BAY) ---
+    [SerializeField] private bool enableGodMode = true;        // Bật/tắt god mode
+    [SerializeField] private float godModeFlySpeed = 20f;      // Tốc độ bay trong god mode
+    [SerializeField] private float godModeAcceleration = 50f;   // Gia tốc bay
+    [SerializeField] private float godModeMaxSpeed = 100f;      // Tốc độ tối đa khi bay
+    [SerializeField] private float godModeRotationSpeed = 360f; // Tốc độ xoay khi bay
+    [SerializeField] private float godModeForwardSpeed = 30f;   // Tốc độ tiến/lùi theo hướng
+    [SerializeField] private float godModeBackwardSpeed = 20f;  // Tốc độ lùi (chậm hơn tiến)
 
     // --- BIẾN PRIVATE ---
     private bool isGrounded;           // Kiểm tra có đang chạm đất không
@@ -50,6 +66,21 @@ public class PlayerController : MonoBehaviour
     private bool isGameOverOrWin = false;
     private bool isGameOver = false;
 
+    // Biến cho hệ thống bám thẳng đứng
+    private bool isStickingToVertical = false;
+    private Vector2 verticalSurfaceNormal;
+    private Transform verticalSurfaceTransform;
+
+    // Biến cho God Mode
+    private bool isGodMode = false;
+    private bool isFlying = false;
+    private float originalGravityScale;
+    private float originalLinearDamping;
+    private float originalAngularDamping;
+
+    // Biến cho khiên vĩnh cửu
+    private bool isPermanentShield = false;
+
     private void Awake()
     {
         // Khởi tạo các component cần thiết
@@ -65,6 +96,11 @@ public class PlayerController : MonoBehaviour
 
         rb.constraints = RigidbodyConstraints2D.None;  // Không giới hạn chuyển động
         rb.freezeRotation = false;
+
+        // Lưu trữ các giá trị gốc cho God Mode
+        originalGravityScale = rb.gravityScale;
+        originalLinearDamping = rb.linearDamping;
+        originalAngularDamping = rb.angularDamping;
 
         // Cho phép xoay
     }
@@ -91,6 +127,8 @@ public class PlayerController : MonoBehaviour
 
         HandleMovement();
         HandleJump();
+        HandleVerticalStick();
+        HandleGodMode();
         UpdateAnimation();
     }
 
@@ -115,6 +153,18 @@ public class PlayerController : MonoBehaviour
         else
         {
             HandleAirRotation();
+        }
+
+        // Xử lý bám thẳng đứng
+        if (enableVerticalStick)
+        {
+            HandleVerticalStickPhysics();
+        }
+
+        // Xử lý God Mode physics (chỉ khi bay)
+        if (isGodMode)
+        {
+            HandleGodModePhysics();
         }
     }
 
@@ -227,13 +277,338 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // Xử lý input cho tính năng bám thẳng đứng
+    private void HandleVerticalStick()
+    {
+        if (!enableVerticalStick) return;
+
+        // Phím Space để bám vào bề mặt thẳng đứng
+        if (Input.GetKeyDown(KeyCode.Space) && !isGrounded)
+        {
+            TryStickToVerticalSurface();
+        }
+
+        // Phím Space để thả bám
+        if (Input.GetKeyUp(KeyCode.Space) && isStickingToVertical)
+        {
+            ReleaseVerticalStick();
+        }
+    }
+
+    // Thử bám vào bề mặt thẳng đứng
+    private void TryStickToVerticalSurface()
+    {
+        // Raycast để tìm bề mặt thẳng đứng
+        Vector2[] directions = { Vector2.right, Vector2.left, Vector2.up, Vector2.down };
+        
+        foreach (Vector2 direction in directions)
+        {
+            RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, verticalStickRange, groundLayer);
+            
+            if (hit.collider != null)
+            {
+                // Kiểm tra nếu bề mặt gần như thẳng đứng (góc > 60 độ)
+                float angle = Vector2.Angle(hit.normal, Vector2.up);
+                if (angle > 60f)
+                {
+                    StickToVerticalSurface(hit);
+                    return;
+                }
+            }
+        }
+    }
+
+    // Bám vào bề mặt thẳng đứng
+    private void StickToVerticalSurface(RaycastHit2D hit)
+    {
+        isStickingToVertical = true;
+        verticalSurfaceNormal = hit.normal;
+        verticalSurfaceTransform = hit.collider.transform;
+        
+        // Điều chỉnh vị trí để bám chặt vào bề mặt
+        Vector2 stickPosition = hit.point + hit.normal * 0.1f;
+        transform.position = stickPosition;
+        
+        // Giảm tốc độ để bám chặt
+        rb.linearVelocity *= verticalStickDamping;
+        rb.angularVelocity *= verticalStickDamping;
+        
+        Debug.Log("Bám vào bề mặt thẳng đứng!");
+    }
+
+    // Thả bám
+    private void ReleaseVerticalStick()
+    {
+        isStickingToVertical = false;
+        verticalSurfaceNormal = Vector2.zero;
+        verticalSurfaceTransform = null;
+        
+        // Thêm một chút lực đẩy khi thả bám
+        rb.AddForce(verticalSurfaceNormal * verticalStickForce * 0.5f, ForceMode2D.Impulse);
+        
+        Debug.Log("Thả bám bề mặt thẳng đứng!");
+    }
+
+    // Xử lý physics khi bám thẳng đứng
+    private void HandleVerticalStickPhysics()
+    {
+        if (!isStickingToVertical) return;
+
+        // Kiểm tra nếu vẫn còn gần bề mặt
+        if (verticalSurfaceTransform != null)
+        {
+            RaycastHit2D hit = Physics2D.Raycast(transform.position, -verticalSurfaceNormal, verticalStickRange, groundLayer);
+            
+            if (hit.collider == null || hit.collider.transform != verticalSurfaceTransform)
+            {
+                // Mất bám nếu xa bề mặt
+                ReleaseVerticalStick();
+                return;
+            }
+        }
+
+        // Áp dụng lực bám để giữ vị trí
+        Vector2 stickForce = -verticalSurfaceNormal * verticalStickForce;
+        rb.AddForce(stickForce * Time.fixedDeltaTime);
+
+        // Cho phép di chuyển dọc theo bề mặt thẳng đứng
+        float horizontalInput = Input.GetAxis("Horizontal");
+        if (Mathf.Abs(horizontalInput) > 0.1f)
+        {
+            Vector2 moveDirection = new Vector2(horizontalInput, 0);
+            rb.AddForce(moveDirection * verticalStickSpeed * Time.fixedDeltaTime);
+        }
+    }
+
+    // Xử lý input cho God Mode
+    private void HandleGodMode()
+    {
+        if (!enableGodMode) return;
+
+        // Kiểm tra Shift + B để bay (nhấn giữ)
+        if (Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.B))
+        {
+            if (!isGodMode)
+            {
+                ActivateGodMode();
+            }
+        }
+        else
+        {
+            if (isGodMode)
+            {
+                DeactivateGodMode();
+            }
+        }
+
+        // Kiểm tra Shift + H để bật/tắt khiên vĩnh cửu
+        if (Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.H))
+        {
+            TogglePermanentShield();
+        }
+
+        // Kiểm tra Shift + Space để tạo khiên thường
+        if (Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.Space))
+        {
+            CreateShield();
+        }
+    }
+
+
+    // Kích hoạt God Mode (Bay)
+    private void ActivateGodMode()
+    {
+        if (isGodMode) return; // Đã bật rồi thì không làm gì
+        
+        isGodMode = true;
+        
+        // Tắt trọng lực
+        rb.gravityScale = 0f;
+        
+        // Giảm damping để bay mượt mà
+        rb.linearDamping = 0.1f;
+        rb.angularDamping = 0.1f;
+        
+        // Bật flying mode
+        isFlying = true;
+        
+        // Thả bám nếu đang bám
+        if (isStickingToVertical)
+        {
+            ReleaseVerticalStick();
+        }
+        
+        Debug.Log("🚀 BAY! (Nhấn giữ Shift + B)");
+    }
+
+    // Tắt God Mode (Dừng bay)
+    private void DeactivateGodMode()
+    {
+        if (!isGodMode) return; // Đã tắt rồi thì không làm gì
+        
+        isGodMode = false;
+        
+        // Khôi phục trọng lực
+        rb.gravityScale = originalGravityScale;
+        
+        // Khôi phục damping
+        rb.linearDamping = originalLinearDamping;
+        rb.angularDamping = originalAngularDamping;
+        
+        // Tắt flying mode
+        isFlying = false;
+        
+        Debug.Log("👤 Dừng bay. Trở về bình thường.");
+    }
+
+    // Bật/tắt khiên vĩnh cửu
+    private void TogglePermanentShield()
+    {
+        isPermanentShield = !isPermanentShield;
+        
+        if (isPermanentShield)
+        {
+            ActivatePermanentShield();
+            Debug.Log("🛡️ KHIÊN VĨNH CỬU ACTIVATED! Bất tử!");
+        }
+        else
+        {
+            DeactivatePermanentShield();
+            Debug.Log("👤 Khiên vĩnh cửu deactivated. Trở về bình thường.");
+        }
+    }
+
+    // Kích hoạt khiên vĩnh cửu
+    private void ActivatePermanentShield()
+    {
+        if (isPermanentShield) return; // Đã bật rồi thì không làm gì
+        
+        isPermanentShield = true;
+        
+        // Kích hoạt khiên ngay lập tức
+        if (!isShieldActive)
+        {
+            ActivateShield(999999f); // Khiên vĩnh cửu (thời gian rất dài)
+        }
+        
+        Debug.Log("🛡️ KHIÊN VĨNH CỬU! Bất tử hoàn toàn!");
+    }
+
+    // Tắt khiên vĩnh cửu
+    private void DeactivatePermanentShield()
+    {
+        if (!isPermanentShield) return; // Đã tắt rồi thì không làm gì
+        
+        isPermanentShield = false;
+        
+        // Tắt khiên nếu đang có
+        if (isShieldActive)
+        {
+            ForceDeactivateShield();
+        }
+        
+        Debug.Log("👤 Khiên vĩnh cửu deactivated. Có thể bị tổn thương.");
+    }
+
+    // Tạo khiên thường (Shift + Space)
+    private void CreateShield()
+    {
+        if (isShieldActive)
+        {
+            Debug.Log("🛡️ Đã có khiên rồi! Không thể tạo thêm.");
+            return;
+        }
+
+        // Tạo khiên thường với thời gian 5 giây
+        ActivateShield(5f);
+        Debug.Log("🛡️ Tạo khiên thường! (5 giây)");
+    }
+
+    // Xử lý physics cho God Mode
+    private void HandleGodModePhysics()
+    {
+        if (!isGodMode) return;
+
+        Vector2 totalMoveInput = Vector2.zero;
+
+        // Điều khiển tiến/lùi theo hướng player
+        if (Input.GetKey(KeyCode.W))
+        {
+            // Tiến theo hướng player đang nhìn
+            Vector2 forwardDirection = transform.right; // Hướng player đang nhìn
+            totalMoveInput += forwardDirection * godModeForwardSpeed;
+        }
+        if (Input.GetKey(KeyCode.S))
+        {
+            // Lùi theo hướng ngược lại
+            Vector2 backwardDirection = -transform.right; // Hướng ngược lại
+            totalMoveInput += backwardDirection * godModeBackwardSpeed;
+        }
+
+        // Điều khiển lên/xuống (Q/E hoặc Shift/Ctrl)
+        if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftShift))
+        {
+            totalMoveInput.y += godModeFlySpeed; // Lên
+        }
+        if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.LeftControl))
+        {
+            totalMoveInput.y -= godModeFlySpeed; // Xuống
+        }
+
+        // Điều khiển trái/phải (A/D) - DI CHUYỂN SANG TRÁI/PHẢI
+        if (Input.GetKey(KeyCode.A))
+        {
+            totalMoveInput.x -= godModeFlySpeed; // Di chuyển sang trái
+        }
+        if (Input.GetKey(KeyCode.D))
+        {
+            totalMoveInput.x += godModeFlySpeed; // Di chuyển sang phải
+        }
+
+        // Áp dụng lực bay
+        if (totalMoveInput.magnitude > 0.1f)
+        {
+            Vector2 flyForce = totalMoveInput.normalized * godModeAcceleration;
+            rb.AddForce(flyForce * Time.fixedDeltaTime);
+            
+            // Giới hạn tốc độ bay
+            if (rb.linearVelocity.magnitude > godModeMaxSpeed)
+            {
+                rb.linearVelocity = rb.linearVelocity.normalized * godModeMaxSpeed;
+            }
+        }
+
+        // Xoay tự do khi bay (Z/X để XOAY - KHÔNG PHẢI DI CHUYỂN)
+        float rotationInput = 0f;
+        if (Input.GetKey(KeyCode.Z))
+            rotationInput = 1f; // Xoay trái (quay người)
+        if (Input.GetKey(KeyCode.X))
+            rotationInput = -1f; // Xoay phải (quay người)
+
+        if (Mathf.Abs(rotationInput) > 0.1f)
+        {
+            rb.AddTorque(-rotationInput * godModeRotationSpeed * Time.fixedDeltaTime);
+        }
+
+        // Damping để kiểm soát tốt hơn khi không có input
+        if (totalMoveInput.magnitude < 0.1f)
+        {
+            rb.linearVelocity *= 0.98f;  // Damping nhẹ hơn để bay mượt
+            rb.angularVelocity *= 0.95f;
+        }
+    }
+
     private void UpdateAnimation()
     {
-        bool isSliding = Mathf.Abs(rb.linearVelocity.x) > minSpeedThreshold;
-        bool isJumping = !isGrounded;
+        bool isSliding = Mathf.Abs(rb.linearVelocity.x) > minSpeedThreshold && !isGodMode;
+        bool isJumping = !isGrounded && !isStickingToVertical && !isGodMode;
+        bool isSticking = isStickingToVertical && !isGodMode;
+        bool isFlying = isGodMode && this.isFlying;
 
         animator.SetBool("isSliding", isSliding);
         animator.SetBool("isJumping", isJumping);
+        animator.SetBool("isSticking", isSticking);
+        animator.SetBool("isFlying", isFlying);
     }
 
     public float GetCurrentSpeed()
@@ -244,6 +619,26 @@ public class PlayerController : MonoBehaviour
     public bool IsGrounded()
     {
         return isGrounded;
+    }
+
+    public bool IsStickingToVertical()
+    {
+        return isStickingToVertical;
+    }
+
+    public bool IsGodMode()
+    {
+        return isGodMode;
+    }
+
+    public bool IsFlying()
+    {
+        return isFlying;
+    }
+
+    public bool IsPermanentShield()
+    {
+        return isPermanentShield;
     }
 
     private Coroutine slowCoroutine;
@@ -424,7 +819,7 @@ public class PlayerController : MonoBehaviour
 
     public bool IsInvulnerable()
     {
-        return isShieldActive || isShieldCooldown;
+        return isShieldActive || isShieldCooldown || isPermanentShield;
     }
 
     public void ForceDeactivateShield()
@@ -483,6 +878,16 @@ public class PlayerController : MonoBehaviour
 
     public void OnGameOver()
     {
+        // Trong God Mode (bay) hoặc có khiên vĩnh cửu, không bị game over
+        if (isGodMode || isPermanentShield)
+        {
+            if (isGodMode)
+                Debug.Log("🚀 God Mode (Bay): Không thể bị game over!");
+            else if (isPermanentShield)
+                Debug.Log("🛡️ Khiên vĩnh cửu: Không thể bị game over!");
+            return;
+        }
+        
         isGameOver = true;
     }
 

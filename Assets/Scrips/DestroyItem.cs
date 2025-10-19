@@ -14,6 +14,13 @@ public class DestroyItem : MonoBehaviour
 
             if (controller != null)
             {
+                // Kiểm tra khiên vĩnh cửu trước
+                if (controller.IsPermanentShield())
+                {
+                    Debug.Log("🛡️ Khiên vĩnh cửu: Miễn nhiễm va chạm với chướng ngại vật!");
+                    return; // Không game over, không tiêu thụ khiên
+                }
+
                 if (controller.IsInvulnerable())
                 {
                     Debug.Log("Player có khiên, miễn nhiễm. Khiên bị tiêu thụ.");

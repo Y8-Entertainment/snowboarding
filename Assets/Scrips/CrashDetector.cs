@@ -9,6 +9,14 @@ public class CrashDetector : MonoBehaviour
     {
         if (collision.CompareTag("Ground"))
         {
+            // Kiểm tra nếu player có khiên vĩnh cửu thì không game over
+            PlayerController controller = collision.GetComponent<PlayerController>();
+            if (controller != null && controller.IsPermanentShield())
+            {
+                AudioManager.Instance.PlayMusic(AudioManager.Instance.loseMusic);
+            GameManager.Instance.ShowGameOverWithDelay(loadDelay);
+            }
+
             Debug.Log("game over");
 
             if (GameManager.Instance == null)
@@ -17,8 +25,8 @@ public class CrashDetector : MonoBehaviour
                 return;
             }
 
-            AudioManager.Instance.PlayMusic(AudioManager.Instance.loseMusic);
-            GameManager.Instance.ShowGameOverWithDelay(loadDelay);
+            Debug.Log("🛡️ Khiên vĩnh cửu: Miễn nhiễm va chạm với đất nguy hiểm!");
+                return;
         }
     }
 }

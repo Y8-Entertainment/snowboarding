@@ -8,6 +8,14 @@ public class IgnoreTriggerOnceIfShielded : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
 
+        // Kiểm tra khiên vĩnh cửu trước
+        PlayerController controller = other.GetComponent<PlayerController>();
+        if (controller != null && controller.IsPermanentShield())
+        {
+            Debug.Log("🛡️ Khiên vĩnh cửu: Miễn nhiễm va chạm với item: " + gameObject.name);
+            return; // Không xử lý va chạm
+        }
+
         PlayerShield shield = other.GetComponent<PlayerShield>();
         if (shield != null && shield.IsShieldActive)
         {

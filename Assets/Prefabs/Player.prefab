@@ -63,6 +63,8 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -84,8 +86,9 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 475679975
-  m_SortingLayer: 2
+  m_SortingLayer: 1
   m_SortingOrder: 0
   m_Sprite: {fileID: 3218457933786461415, guid: fa35b600ad27cc840a65d49783f14859, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -183,24 +186,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3dbf923b95ee91c42bfad341176d3f90, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxSpeed: 53
-  jumpForce: 30
+  maxSpeed: 35
+  jumpForce: 20
   torqueAmount: 5
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
   groundCheck: {fileID: 5283268304162750707}
-  decelerationRate: 5
+  decelerationRate: 1
   minSpeedThreshold: 2
-  gravityMultiplier: 2.2
-  moveForce: 10
-  balanceForce: 3.5
-  maxBalanceAngle: 35
-  balanceSpeed: 10
-  stabilityForce: 6
+  gravityMultiplier: 1.5
+  moveForce: 6
+  balanceForce: 4
+  maxBalanceAngle: 75
+  balanceSpeed: 30
+  stabilityForce: 4
   airRotationSpeed: 360
   maxAirRotationSpeed: 250
   helmetShieldPrefab: {fileID: 5857313124304621287, guid: 2e3f4d938db26bc468ac7a71507f7fbb, type: 3}
+  decelerateDuration: 1.5
 --- !u!95 &3169936405850992467
 Animator:
   serializedVersion: 7
@@ -5191,6 +5195,8 @@ ParticleSystemRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -5212,6 +5218,7 @@ ParticleSystemRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
