@@ -416,22 +416,36 @@ public class PlayerController : MonoBehaviour
         if (idleTime > 0)
             yield return new WaitForSeconds(idleTime);
 
-        if (helmetShieldInstance != null && shieldAnim != null)
+        // Check if infinite shield is active (cheat system)
+        bool infiniteShield = CheatManager.Instance != null && CheatManager.Instance.IsInfiniteShieldActive();
+        
+        // If infinite shield is active, don't fade out and destroy
+        if (!infiniteShield)
         {
-            shieldAnim.SetTrigger("FadeOut");
-            yield return new WaitForSeconds(2f);
+            if (helmetShieldInstance != null && shieldAnim != null)
+            {
+                shieldAnim.SetTrigger("FadeOut");
+                yield return new WaitForSeconds(2f);
+            }
+
+            if (helmetShieldInstance != null)
+                Destroy(helmetShieldInstance);
+
+            helmetShieldInstance = null;
+            shieldAnim = null;
+            isShieldActive = false;
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.getShieldDisappear);
+            SetItemCollidersActive(true);
+
+            StartCoroutine(DelayedReactivation());
         }
-
-        if (helmetShieldInstance != null)
-            Destroy(helmetShieldInstance);
-
-        helmetShieldInstance = null;
-        shieldAnim = null;
-        isShieldActive = false;
-        AudioManager.Instance.PlaySFX(AudioManager.Instance.getShieldDisappear);
-        SetItemCollidersActive(true);
-
-        StartCoroutine(DelayedReactivation());
+        else
+        {
+            // Infinite shield: restart the routine to keep it active forever
+            Debug.Log("[CHEAT] Shield is infinite - restarting routine");
+            yield return new WaitForSeconds(1f);
+            StartCoroutine(ShieldRoutine(999999f)); // Restart with very long duration
+        }
     }
 
     private bool isShieldCooldown = false;

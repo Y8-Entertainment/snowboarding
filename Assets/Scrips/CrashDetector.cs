@@ -9,6 +9,13 @@ public class CrashDetector : MonoBehaviour
     {
         if (collision.CompareTag("Ground"))
         {
+            // Check if god mode is active (cheat system)
+            if (CheatManager.Instance != null && CheatManager.Instance.IsGodModeActive())
+            {
+                Debug.Log("[CHEAT] God Mode prevented crash!");
+                return; // Skip crash logic
+            }
+
             Debug.Log("game over");
 
             if (GameManager.Instance == null)

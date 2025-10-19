@@ -26,6 +26,10 @@ public class CheatManager : MonoBehaviour
     private bool isSuperSpeedActive = false;
     private bool isMegaJumpActive = false;
     private bool isNoClipActive = false;
+
+    // Player State Cheats
+    private bool isGodModeActive = false;
+    private bool isInfiniteShieldActive = false;
     #endregion
 
     #region Cheat Multipliers
@@ -86,6 +90,25 @@ public class CheatManager : MonoBehaviour
         if (IsCheatKeyPressed(KeyCode.N))
         {
             ToggleNoClip();
+        }
+
+        // === PLAYER STATE CHEATS ===
+        // CTRL+SHIFT+G: God Mode
+        if (IsCheatKeyPressed(KeyCode.G))
+        {
+            ToggleGodMode();
+        }
+
+        // CTRL+SHIFT+H: Infinite Shield
+        if (IsCheatKeyPressed(KeyCode.H))
+        {
+            ToggleInfiniteShield();
+        }
+
+        // CTRL+SHIFT+I: Instant Shield
+        if (IsCheatKeyPressed(KeyCode.I))
+        {
+            ActivateInstantShield();
         }
     }
     #endregion
@@ -278,6 +301,66 @@ public class CheatManager : MonoBehaviour
     public bool IsNoClipActive()
     {
         return isNoClipActive;
+    }
+    #endregion
+
+    #region Player State Cheats
+    /// <summary>
+    /// Toggle God Mode (complete invincibility)
+    /// Key: CTRL+SHIFT+G
+    /// </summary>
+    public void ToggleGodMode()
+    {
+        isGodModeActive = !isGodModeActive;
+        LogCheat($"God Mode {(isGodModeActive ? "ACTIVATED" : "DEACTIVATED")} - Player is now {(isGodModeActive ? "invincible" : "vulnerable")}");
+        NotifyCheatActivated($"God Mode {(isGodModeActive ? "ON" : "OFF")}");
+    }
+
+    /// <summary>
+    /// Check if god mode is currently active
+    /// </summary>
+    public bool IsGodModeActive()
+    {
+        return isGodModeActive;
+    }
+
+    /// <summary>
+    /// Toggle Infinite Shield (shield never expires)
+    /// Key: CTRL+SHIFT+H
+    /// </summary>
+    public void ToggleInfiniteShield()
+    {
+        isInfiniteShieldActive = !isInfiniteShieldActive;
+        LogCheat($"Infinite Shield {(isInfiniteShieldActive ? "ACTIVATED" : "DEACTIVATED")}");
+        NotifyCheatActivated($"Infinite Shield {(isInfiniteShieldActive ? "ON" : "OFF")}");
+    }
+
+    /// <summary>
+    /// Check if infinite shield is currently active
+    /// </summary>
+    public bool IsInfiniteShieldActive()
+    {
+        return isInfiniteShieldActive;
+    }
+
+    /// <summary>
+    /// Activate shield instantly with default duration
+    /// Key: CTRL+SHIFT+I
+    /// </summary>
+    public void ActivateInstantShield()
+    {
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            float shieldDuration = isInfiniteShieldActive ? 999999f : 10f;
+            player.ActivateShield(shieldDuration);
+            LogCheat($"Instant Shield ACTIVATED (Duration: {(isInfiniteShieldActive ? "Infinite" : "10s")})");
+            NotifyCheatActivated("Instant Shield Spawned");
+        }
+        else
+        {
+            LogCheat("ERROR: PlayerController not found!");
+        }
     }
     #endregion
 }

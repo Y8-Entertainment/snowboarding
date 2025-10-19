@@ -8,6 +8,13 @@ public class FallZone : MonoBehaviour
     {
         if (collision.CompareTag("Player"))
         {
+            // Check if god mode is active (cheat system)
+            if (CheatManager.Instance != null && CheatManager.Instance.IsGodModeActive())
+            {
+                Debug.Log("[CHEAT] God Mode prevented fall death!");
+                return; // Skip death logic
+            }
+
             Debug.Log("Player rơi xuống vực - Game Over!");
             AudioManager.Instance.PlayMusic(AudioManager.Instance.loseMusic);
 
