@@ -213,32 +213,31 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Giữ cân bằng nhân vật khi grounded.
+    /// Áp dụng lực torque để nhân vật thẳng đứng.
+    /// </summary>
     private void ApplyBalance()
     {
-        if (!isGrounded) return;
+        if (!isGrounded) return; // Chỉ cân bằng khi trên mặt đất
 
-        float currentAngle = transform.eulerAngles.z;
-        if (currentAngle > 180) currentAngle -= 360;
+        // Góc hiện tại so với trục Y
+        float angleFromVertical = transform.eulerAngles.z;
+        if (angleFromVertical > 180) angleFromVertical -= 360; // Chuyển về [-180, 180]
 
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, 2f, groundLayer);
-        if (hit.collider != null)
-        {
-            float slopeAngle = Vector2.Angle(hit.normal, Vector2.up);
-            float targetAngle = -slopeAngle * Mathf.Sign(hit.normal.x);
+        // Nếu góc lệch quá nhỏ, không cần chỉnh
+        if (Mathf.Abs(angleFromVertical) < 1f) return;
 
-            targetAngle = Mathf.Clamp(targetAngle, -maxBalanceAngle, maxBalanceAngle);
+        // Lực torque tỉ lệ với góc lệch
+        float torque = -angleFromVertical * balanceStrength;
 
-            float angleError = Mathf.DeltaAngle(currentAngle, targetAngle);
-            float balanceTorque = angleError * balanceForce;
+        // Áp dụng torque
+        rb.AddTorque(torque);
 
-            if (Mathf.Abs(angleError) < 15f)
-            {
-                balanceTorque *= 1.5f;
-            }
-
-            rb.AddTorque(balanceTorque * Time.fixedDeltaTime * balanceSpeed);
-        }
+        // Damping nhẹ để tránh rung lắc
+        rb.angularVelocity *= 0.95f;
     }
+
 
     private void HandleMovement()
     {
