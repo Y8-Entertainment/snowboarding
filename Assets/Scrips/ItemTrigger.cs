@@ -1,25 +1,41 @@
 ﻿using UnityEngine;
 
+[RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(Collider2D))]
 public class ItemTrigger : MonoBehaviour
 {
-    private Animator animator;
-    private bool hasPlayed = false;
+    [SerializeField] private string targetTag = "Player";
+    [SerializeField] private string animationTriggerName = "Play";
 
-    void Start()
+  
+    [SerializeField] private AudioClip triggerSound;
+
+    private Animator animator;
+    private bool hasTriggered = false;
+
+    private void Awake()
     {
         animator = GetComponent<Animator>();
     }
 
-    void OnTriggerEnter2D(Collider2D other)
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        if (!hasPlayed && other.CompareTag("Player"))
+        if (hasTriggered || !other.CompareTag(targetTag))
         {
-            animator.SetTrigger("Play");
-            hasPlayed = true;
+            return;
         }
+
+        hasTriggered = true;
+
+        
+        if (triggerSound != null)
+        {
+            AudioManager.Instance.PlaySFX(triggerSound);
+        }
+
+        animator.SetTrigger(animationTriggerName);
     }
 
-    // Gọi từ animation event để xóa object
     public void DestroySelf()
     {
         Destroy(gameObject);
